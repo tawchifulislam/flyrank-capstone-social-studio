@@ -49,3 +49,15 @@ Same variant and time again returns the same slot (HTTP 200, slot id 1). A diffe
 Editing an approved variant returns it to draft and removes the pending slot, so scheduling it again returns 409.
 
 Automated tests: tests/review.test.js, 9 tests. npm test: 13 pass, 0 fail.
+
+## Adapter layer
+
+One SocialPublisher interface. Real adapter: TelegramPublisher. Mock adapters: MockXPublisher and MockLinkedInPublisher, which record what they would post in the mock_posts table. The application picks an adapter from configuration (ADAPTER_TELEGRAM, ADAPTER_X, ADAPTER_LINKEDIN).
+
+Real message in my own Telegram channel:
+
+    npm run smoke:telegram
+
+Screenshot: docs/evidence/telegram-post.png
+
+Swapping the adapter in configuration, with no code change outside src/adapters, is covered by tests/adapters.test.js, "swapping the adapter in configuration changes the publisher with no code change".
