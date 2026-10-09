@@ -1,5 +1,6 @@
 import express from "express";
 import { postsRouter } from "./routes/posts.js";
+import { postVariantsRouter } from "./routes/postVariants.js";
 
 export function createApp(db) {
   const app = express();
@@ -10,6 +11,7 @@ export function createApp(db) {
   });
 
   app.use("/posts", postsRouter(db));
+  app.use("/posts/:id/variants", postVariantsRouter(db));
 
   app.use((req, res) => {
     res.status(404).json({ error: "route not found" });
