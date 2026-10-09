@@ -123,3 +123,33 @@ The first server process exited right after recording the mock post (mock post c
 One success in the history, one post in mock_posts. The success was recorded at 09:59:18, after the restart, and the post was not sent a second time.
 
 Automated tests: tests/scheduler.test.js, 7 tests. They cover not-yet-due slots, a due slot published once, recovery after a crash after the post, recovery after a crash before the post, an adapter that cannot verify, retry-after backoff, and fresh claims left alone.
+
+## Acceptance probes
+
+Run against a live server with `bash scripts/probes.sh 20`. First with the real Telegram adapter, then again with `ADAPTER_TELEGRAM=mock_x`. Screenshot of the channel after the first run: docs/evidence/telegram-probes.png
+
+PROBE 1, ingest a sample post, every variant passes its profile:
+
+    {"variants":[{"id":1,"post_id":1,"platform":"telegram","text":"New post: Probe post\n\nOne sentence of source text for the probes. A second sentence adds more detail for the longer platforms.\n\n#Probe #Post","status":"draft", ...},{"id":2,"post_id":1,"platform":"x","text":"One sentence of source text for the probes.\n#Probe #Post","status":"draft", ...},{"id":3,"post_id":1,"platform":"linkedin","text":"Probe post\n\nOne sentence of source text for the probes. A second sentence adds more detail for the longer platforms.\n\n#Probe #Post","status":"draft", ...}]}
+
+PROBE 2, a rule-breaking variant is blocked before review and the error names the rule:
+
+    {"error":"rule max_length broken: text has 300 characters, x allows 280"}
+    HTTP 422
+
+PROBE 3, scheduling an unapproved variant is refused:
+
+    {"error":"only approved variants can be scheduled, this one is draft"}
+    HTTP 409
+
+PROBE 4, an approved variant is scheduled 20 seconds out and the scheduler publishes it to the real target. The publish record links to the live message (external_id is the channel and the message id):
+
+    {"id":1,"variant_id":1,"scheduled_at":"2026-10-09T10:03:51.000Z","status":"pending","idempotency_key":"variant:1:2026-10-09T10:03:51.000Z","claimed_at":null,"retry_at":null,"created_at":"2026-10-09T10:03:31.411Z"}
+    {"id":1,"slot_id":1,"variant_id":1,"platform":"telegram","idempotency_key":"variant:1:2026-10-09T10:03:51.000Z","result":"success","external_id":"@socialstudio339:6","error":null,"attempted_at":"2026-10-09T10:03:54.592Z"}
+
+PROBE 5, force a publish retry by stopping the worker mid-publish and restarting: see the section Durable scheduling above. One success in the history and one post in mock_posts.
+
+PROBE 6, swap the adapter in configuration. The same script run with `ADAPTER_TELEGRAM=mock_x npm start` publishes the same kind of campaign through the mock, with no code change:
+
+    {"id":1,"slot_id":1,"variant_id":1,"platform":"telegram","idempotency_key":"variant:1:2026-10-09T10:04:47.000Z","result":"success","external_id":"mock_x:1","error":null,"attempted_at":"2026-10-09T10:04:50.590Z"}
+    {"posts":[{"id":1,"adapter":"mock_x","variant_id":1,"idempotency_key":"variant:1:2026-10-09T10:04:47.000Z","text":"New post: Probe post ...","preview":"[mock X post]\nNew post: Probe post ...","created_at":"2026-10-09T10:04:50.587Z"}]}
