@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS publish_attempts (
   variant_id INTEGER NOT NULL REFERENCES variants(id) ON DELETE CASCADE,
   platform TEXT NOT NULL,
   idempotency_key TEXT NOT NULL,
-  result TEXT NOT NULL CHECK (result IN ('success', 'failed', 'duplicate_ignored')),
+  result TEXT NOT NULL CHECK (result IN ('success', 'failed', 'unknown', 'duplicate_ignored')),
   external_id TEXT,
   error TEXT,
   attempted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))

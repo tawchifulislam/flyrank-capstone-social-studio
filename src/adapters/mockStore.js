@@ -21,6 +21,16 @@ export function recordMockPost(db, { adapter, variantId, idempotencyKey, text, p
   return Number(result.lastInsertRowid);
 }
 
+export function findMockPostByKey(db, adapter, idempotencyKey) {
+  return (
+    db
+      .prepare(
+        "SELECT * FROM mock_posts WHERE adapter = ? AND idempotency_key = ? ORDER BY id LIMIT 1"
+      )
+      .get(adapter, idempotencyKey) ?? null
+  );
+}
+
 export function listMockPosts(db) {
   return db.prepare("SELECT * FROM mock_posts ORDER BY id").all();
 }

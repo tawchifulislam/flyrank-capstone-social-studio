@@ -1,3 +1,5 @@
+const NOW = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
+
 export function createSlot(db, { variantId, scheduledAt, idempotencyKey }) {
   const result = db
     .prepare(
@@ -31,4 +33,26 @@ export function deletePendingSlotsForVariant(db, variantId) {
     .prepare("DELETE FROM slots WHERE variant_id = ? AND status = 'pending'")
     .run(variantId);
   return Number(result.changes);
+}
+
+export function claimSlot(db, id) {
+  const result = db
+    .prepare(
+      `UPDATE slots SET status = 'claimed', claimed_at = ${NOW} WHERE id = ? AND status = 'pending'`
+    )
+    .run(id);
+  return Number(result.changes) === 1;
+}
+
+export function releaseSlot(db, id) {
+  const result = db
+    .prepare(
+      "UPDATE slots SET status = 'pending', claimed_at = NULL WHERE id = ? AND status = 'claimed'"
+    )
+    .run(id);
+  return Number(result.changes) === 1;
+}
+
+export function finishSlot(db, id, status) {
+  db.prepare("UPDATE slots SET status = ? WHERE id = ?").run(status, id);
 }

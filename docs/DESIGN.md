@@ -30,7 +30,7 @@ Only an approved variant can be scheduled. Any other status returns 409 with an 
 posts: id, source_type (url | markdown), source_url, title, body, created_at
 variants: id, post_id, platform, text, status, rejection_reason, created_at, updated_at
 slots: id, variant_id, scheduled_at, status (pending | claimed | done | failed), idempotency_key (unique), claimed_at, created_at
-publish_attempts: id, slot_id, variant_id, platform, idempotency_key, result (success | failed | duplicate_ignored), external_id, error, attempted_at
+publish_attempts: id, slot_id, variant_id, platform, idempotency_key, result (success | failed | unknown | duplicate_ignored), external_id, error, attempted_at
 
 The idempotency key is built from variant id and slot time. A unique index on slots.idempotency_key and a successful attempt check stop a second post for the same variant and slot.
 

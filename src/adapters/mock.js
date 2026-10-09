@@ -1,5 +1,5 @@
 import { SocialPublisher } from "./SocialPublisher.js";
-import { ensureMockTable, recordMockPost } from "./mockStore.js";
+import { ensureMockTable, findMockPostByKey, recordMockPost } from "./mockStore.js";
 
 class MockPublisher extends SocialPublisher {
   constructor(db, name, label) {
@@ -19,6 +19,12 @@ class MockPublisher extends SocialPublisher {
       preview,
     });
     return { externalId: `${this.name}:${id}`, preview };
+  }
+
+  async lookup(idempotencyKey) {
+    const row = findMockPostByKey(this.db, this.name, idempotencyKey);
+    if (!row) return null;
+    return { externalId: `${row.adapter}:${row.id}`, preview: row.preview };
   }
 }
 

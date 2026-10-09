@@ -33,7 +33,10 @@ export class TelegramPublisher extends SocialPublisher {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch {
-      throw new PublishError("telegram request failed", { retryable: true });
+      throw new PublishError("telegram request failed", {
+        retryable: true,
+        ambiguous: true,
+      });
     }
 
     let payload = null;
@@ -67,7 +70,10 @@ export class TelegramPublisher extends SocialPublisher {
     }
 
     if (code >= 500) {
-      throw new PublishError(`telegram server error ${code}`, { retryable: true });
+      throw new PublishError(`telegram server error ${code}`, {
+        retryable: true,
+        ambiguous: true,
+      });
     }
 
     throw new PublishError(

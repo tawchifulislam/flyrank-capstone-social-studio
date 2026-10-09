@@ -6,4 +6,8 @@ export class SocialPublisher {
   async publish() {
     throw new Error(`${this.name} does not implement publish`);
   }
+
+  async lookup() {
+    return undefined;
+  }
 }
