@@ -248,7 +248,7 @@ Command:
 
 Output:
 
-    .gitignore:2:.env	.env
+    .gitignore:2:.env .env
 
 Number of commits in the whole history that contain the bot token:
 
