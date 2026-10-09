@@ -153,3 +153,165 @@ PROBE 6, swap the adapter in configuration. The same script run with `ADAPTER_TE
 
     {"id":1,"slot_id":1,"variant_id":1,"platform":"telegram","idempotency_key":"variant:1:2026-10-09T10:04:47.000Z","result":"success","external_id":"mock_x:1","error":null,"attempted_at":"2026-10-09T10:04:50.590Z"}
     {"posts":[{"id":1,"adapter":"mock_x","variant_id":1,"idempotency_key":"variant:1:2026-10-09T10:04:47.000Z","text":"New post: Probe post ...","preview":"[mock X post]\nNew post: Probe post ...","created_at":"2026-10-09T10:04:50.587Z"}]}
+
+## Ingestion
+
+A post enters as pasted Markdown or as a URL and is stored. Variants are generated from the stored post only. A private address is refused.
+
+Command:
+
+    curl -s -w \nHTTP %{http_code} -X POST http://localhost:3000/posts -H Content-Type: application/json -d {"markdown":"# Stored post\n\nThis text is stored once. Every variant is built from the stored copy."}
+
+Output:
+
+    {"id":2,"source_type":"markdown","source_url":null,"title":"Stored post","body":"# Stored post\n\nThis text is stored once. Every variant is built from the stored copy.","created_at":"2026-10-09T10:11:27.628Z"}
+    HTTP 201
+
+Command:
+
+    curl -s http://localhost:3000/posts/2
+
+Output:
+
+    {"id":2,"source_type":"markdown","source_url":null,"title":"Stored post","body":"# Stored post\n\nThis text is stored once. Every variant is built from the stored copy.","created_at":"2026-10-09T10:11:27.628Z"}
+
+Command:
+
+    curl -s -w \nHTTP %{http_code} -X POST http://localhost:3000/posts -H Content-Type: application/json -d {"url":"https://example.com"}
+
+Output:
+
+    {"id":3,"source_type":"url","source_url":"https://example.com","title":"Example Domain","body":"Example Domain This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.","created_at":"2026-10-09T10:11:28.022Z"}
+    HTTP 201
+
+Command:
+
+    curl -s -w \nHTTP %{http_code} -X POST http://localhost:3000/posts -H Content-Type: application/json -d {"url":"http://localhost:3000/health"}
+
+Output:
+
+    {"error":"url points to a private address"}
+    HTTP 400
+
+Command:
+
+    curl -s -w \nHTTP %{http_code} -X POST http://localhost:3000/posts -H Content-Type: application/json -d {}
+
+Output:
+
+    {"error":"provide either markdown or url"}
+    HTTP 400
+
+Command:
+
+    curl -s -X POST http://localhost:3000/posts/2/variants/generate
+
+Output:
+
+    {"variants":[{"id":4,"post_id":2,"platform":"telegram","text":"New post: Stored post\n\nThis text is stored once. Every variant is built from the stored copy.\n\n#Stored #Post","status":"draft","rejection_reason":null,"created_at":"2026-10-09T10:11:28.303Z","updated_at":"2026-10-09T10:11:28.303Z"},{"id":5,"post_id":2,"platform":"x","text":"This text is stored once.\n#Stored #Post","status":"draft","rejection_reason":null,"created_at":"2026-10-09T10:11:28.303Z","updated_at":"2026-10-09T10:11:28.303Z"},{"id":6,"post_id":2,"platform":"linkedin","text":"Stored post\n\nThis text is stored once. Every variant is built from the stored copy.\n\n#Stored #Post","status":"draft","rejection_reason":null,"created_at":"2026-10-09T10:11:28.303Z","updated_at":"2026-10-09T10:11:28.303Z"}]}
+
+Generation reads the post through getPost and uses only its stored title, body and source URL:
+
+Command:
+
+    grep -n getPost\|post\.body\|post\.title\|post\.source_url src/services/variants.js src/services/generators/templates.js
+
+Output:
+
+    src/services/variants.js:3:import { getPost } from "../repositories/posts.js";
+    src/services/variants.js:13:  const post = getPost(db, postId);
+    src/services/generators/templates.js:87:    const summary = sentences.slice(0, 2).join(" ") || post.title;
+    src/services/generators/templates.js:89:      [`New post: ${post.title}`, s, link, tags.join(" ")]
+    src/services/generators/templates.js:98:      [post.title, s, link ? `Read the full post: ${link}` : "", tags.join(" ")]
+    src/services/generators/templates.js:105:  telegram: (post, sentences) => sentences.slice(0, 2).join(" ") || post.title,
+    src/services/generators/templates.js:106:  x: (post, sentences) => sentences[0] || post.title,
+    src/services/generators/templates.js:107:  linkedin: (post, sentences) => sentences.slice(0, 4).join(" ") || post.title,
+    src/services/generators/templates.js:112:  const sentences = splitSentences(toPlain(post.body));
+    src/services/generators/templates.js:113:  const tags = hashtagsFor(post.title, profile.maxHashtags);
+    src/services/generators/templates.js:114:  const link = post.source_url ?? "";
+
+## Secrets clean
+
+Tokens live in .env only. .env is ignored by git and the repository ships .env.example.
+
+Command:
+
+    git ls-files .env .env.example
+
+Output:
+
+    .env.example
+
+Command:
+
+    git check-ignore -v .env
+
+Output:
+
+    .gitignore:2:.env	.env
+
+Number of commits in the whole history that contain the bot token:
+
+    0
+
+Command:
+
+    grep -rn TELEGRAM_BOT_TOKEN src
+
+Output:
+
+    src/adapters/TelegramPublisher.js:14:      throw new Error("TELEGRAM_BOT_TOKEN is not set");
+    src/config.js:11:  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
+
+The Telegram adapter test checks that an error never contains the token (tests/adapters.test.js, a network failure is retryable and never leaks the token).
+
+## README and a stranger run
+
+The README has what the system does, an architecture sketch, exact run and seed steps and a limitations section. A fresh clone of the public repository installs, passes its tests and answers on its own port:
+
+Command:
+
+    bash -c cd '/tmp/tmp.fsaluGixIy/repo' && npm install --silent 2>&1 | tail -n 3; npm test 2>&1 | tail -n 9
+
+Output:
+
+    ✔ a rule-breaking manual variant is blocked and the error names the rule (1.0006ms)
+    ℹ tests 38
+    ℹ suites 0
+    ℹ pass 38
+    ℹ fail 0
+    ℹ cancelled 0
+    ℹ skipped 0
+    ℹ todo 0
+    ℹ duration_ms 221.5277
+
+Command:
+
+    curl -s http://localhost:3100/health
+
+Output:
+
+    {"status":"ok"}
+
+Command:
+
+    env BASE_URL=http://localhost:3100 bash /tmp/tmp.fsaluGixIy/repo/scripts/seed.sh
+
+Output:
+
+    post 1 stored
+    {"variants":[{"id":1,"post_id":1,"platform":"telegram","text":"New post: Seed post\n\nThis sample blog post seeds the demo. Each platform gets its own variant, a person approves it, and the scheduler publishes it once.\n\n#Seed #Post","status":"draft","rejection_reason":null,"created_at":"2026-10-09T10:11:43.959Z","updated_at":"2026-10-09T10:11:43.959Z"},{"id":2,"post_id":1,"platform":"x","text":"This sample blog post seeds the demo.\n#Seed #Post","status":"draft","rejection_reason":null,"created_at":"2026-10-09T10:11:43.959Z","updated_at":"2026-10-09T10:11:43.959Z"},{"id":3,"post_id":1,"platform":"linkedin","text":"Seed post\n\nThis sample blog post seeds the demo. Each platform gets its own variant, a person approves it, and the scheduler publishes it once.\n\n#Seed #Post","status":"draft","rejection_reason":null,"created_at":"2026-10-09T10:11:43.959Z","updated_at":"2026-10-09T10:11:43.959Z"}]}
+
+Files required at submission:
+
+Command:
+
+    ls -1 README.md capstone.yaml EVIDENCE.md BUILDLOG.md .env.example
+
+Output:
+
+    .env.example
+    BUILDLOG.md
+    capstone.yaml
+    EVIDENCE.md
+    README.md
