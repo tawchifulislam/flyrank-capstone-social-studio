@@ -94,3 +94,32 @@ Command: curl -s localhost:3000/publish-history
 Output (newest first):
 
     {"attempts":[{"id":3,"slot_id":2,"variant_id":7,"platform":"telegram","idempotency_key":"variant:7:2026-10-09T10:00:38.000Z","result":"duplicate_ignored","external_id":"@socialstudio339:4","error":null,"attempted_at":"2026-10-09T09:50:39.566Z"},{"id":2,"slot_id":2,"variant_id":7,"platform":"telegram","idempotency_key":"variant:7:2026-10-09T10:00:38.000Z","result":"duplicate_ignored","external_id":"@socialstudio339:4","error":null,"attempted_at":"2026-10-09T09:50:39.526Z"},{"id":1,"slot_id":2,"variant_id":7,"platform":"telegram","idempotency_key":"variant:7:2026-10-09T10:00:38.000Z","result":"success","external_id":"@socialstudio339:4","error":null,"attempted_at":"2026-10-09T09:50:39.484Z"}]}
+
+## Durable scheduling
+
+A worker polls for due slots and publishes them through the adapter. A worker that stops in the middle of a publish resumes without double posting: on startup every claimed slot is checked with the adapter lookup. If the post exists the slot is marked done, if it provably does not exist the slot goes back to pending, and if the adapter cannot verify (Telegram) the slot is marked failed so no duplicate is risked.
+
+Scheduled publish with no manual publish call (real Telegram adapter):
+
+    npm start
+    bash scripts/demo-schedule.sh 60
+
+The post "Scheduled by the worker" appeared in my channel at 3:56 PM, about a minute later, published by the worker. Screenshot: docs/evidence/telegram-scheduled-publish.png
+
+Crash after the platform accepted the post, then restart (mock adapter so the crash point is exact):
+
+    rm -rf data
+    ADAPTER_TELEGRAM=mock_x MOCK_CRASH_AFTER_POST=true npm start
+    bash scripts/demo-schedule.sh 15
+    ADAPTER_TELEGRAM=mock_x npm start
+    curl -s localhost:3000/publish-history
+    curl -s localhost:3000/mock-posts
+
+The first server process exited right after recording the mock post (mock post created_at 09:58:55). After the restart:
+
+    {"attempts":[{"id":1,"slot_id":1,"variant_id":1,"platform":"telegram","idempotency_key":"variant:1:2026-10-09T09:58:55.000Z","result":"success","external_id":"mock_x:1","error":null,"attempted_at":"2026-10-09T09:59:18.648Z"}]}
+    {"posts":[{"id":1,"adapter":"mock_x","variant_id":1,"idempotency_key":"variant:1:2026-10-09T09:58:55.000Z","text":"...","preview":"...","created_at":"2026-10-09T09:58:55.769Z"}]}
+
+One success in the history, one post in mock_posts. The success was recorded at 09:59:18, after the restart, and the post was not sent a second time.
+
+Automated tests: tests/scheduler.test.js, 7 tests. They cover not-yet-due slots, a due slot published once, recovery after a crash after the post, recovery after a crash before the post, an adapter that cannot verify, retry-after backoff, and fresh claims left alone.
