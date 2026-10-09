@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS slots (
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'claimed', 'done', 'failed')),
   idempotency_key TEXT NOT NULL UNIQUE,
   claimed_at TEXT,
+  retry_at TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_slots_due ON slots(status, scheduled_at);

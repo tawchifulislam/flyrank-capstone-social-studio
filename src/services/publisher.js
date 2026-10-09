@@ -18,7 +18,7 @@ function describe(slot, extra) {
   return { slotId: slot.id, variantId: slot.variant_id, ...extra };
 }
 
-function finalizeSuccess(db, slot, variant, key, { externalId, preview }) {
+export function finalizeSuccess(db, slot, variant, key, { externalId, preview }) {
   db.exec("BEGIN");
   try {
     recordAttempt(db, {

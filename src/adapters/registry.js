@@ -1,14 +1,21 @@
 import { TelegramPublisher } from "./TelegramPublisher.js";
 import { MockXPublisher, MockLinkedInPublisher } from "./mock.js";
 
+function mockOptions(config) {
+  return {
+    delayMs: config.mockPublishDelayMs,
+    crashAfterPost: config.mockCrashAfterPost,
+  };
+}
+
 const factories = {
   telegram: ({ config }) =>
     new TelegramPublisher({
       token: config.telegramBotToken,
       chatId: config.telegramChatId,
     }),
-  mock_x: ({ db }) => new MockXPublisher(db),
-  mock_linkedin: ({ db }) => new MockLinkedInPublisher(db),
+  mock_x: ({ db, config }) => new MockXPublisher(db, mockOptions(config)),
+  mock_linkedin: ({ db, config }) => new MockLinkedInPublisher(db, mockOptions(config)),
 };
 
 export function createPublisherRegistry({ db, config }) {

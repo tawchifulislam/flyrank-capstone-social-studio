@@ -2,6 +2,7 @@ import { Router } from "express";
 import { parseId } from "../http.js";
 import { publishSlot } from "../services/publisher.js";
 import { listHistory } from "../repositories/attempts.js";
+import { ensureMockTable, listMockPosts } from "../adapters/mockStore.js";
 
 const STATUS_BY_OUTCOME = {
   published: 201,
@@ -15,6 +16,7 @@ const STATUS_BY_OUTCOME = {
 
 export function publishingRouter(db, registry) {
   const router = Router();
+  ensureMockTable(db);
 
   router.post("/slots/:id/publish", async (req, res) => {
     const id = parseId(req.params.id, "slot id");
@@ -26,6 +28,10 @@ export function publishingRouter(db, registry) {
     const requested = Number(req.query.limit);
     const limit = Math.min(Math.max(Number.isInteger(requested) ? requested : 50, 1), 200);
     res.json({ attempts: listHistory(db, limit) });
+  });
+
+  router.get("/mock-posts", (req, res) => {
+    res.json({ posts: listMockPosts(db) });
   });
 
   return router;

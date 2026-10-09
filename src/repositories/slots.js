@@ -56,3 +56,21 @@ export function releaseSlot(db, id) {
 export function finishSlot(db, id, status) {
   db.prepare("UPDATE slots SET status = ? WHERE id = ?").run(status, id);
 }
+
+export function setRetryAt(db, id, retryAt) {
+  db.prepare("UPDATE slots SET retry_at = ? WHERE id = ?").run(retryAt, id);
+}
+
+export function listDueSlots(db, nowIso, limit) {
+  return db
+    .prepare(
+      "SELECT * FROM slots WHERE status = 'pending' AND scheduled_at <= ? AND (retry_at IS NULL OR retry_at <= ?) ORDER BY scheduled_at, id LIMIT ?"
+    )
+    .all(nowIso, nowIso, limit);
+}
+
+export function listClaimedBefore(db, cutoffIso) {
+  return db
+    .prepare("SELECT * FROM slots WHERE status = 'claimed' AND claimed_at <= ? ORDER BY id")
+    .all(cutoffIso);
+}
