@@ -1,0 +1,17 @@
+run: npm install && npm start
+seed: bash scripts/seed.sh
+test: npm test
+base_url: http://localhost:3000
+endpoints:
+  health: GET /health
+  ingest_post: POST /posts
+  generate_variants: POST /posts/{postId}/variants/generate
+  list_variants: GET /posts/{postId}/variants
+  create_variant: POST /posts/{postId}/variants
+  edit_variant: PATCH /variants/{variantId}
+  approve_variant: POST /variants/{variantId}/approve
+  reject_variant: POST /variants/{variantId}/reject
+  schedule_variant: POST /variants/{variantId}/schedule
+  publish_slot_now: POST /slots/{slotId}/publish
+  publish_history: GET /publish-history
+  mock_posts: GET /mock-posts

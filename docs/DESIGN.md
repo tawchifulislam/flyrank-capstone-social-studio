@@ -61,3 +61,11 @@ GET /health
 ## Non-goal
 
 No image generation, analytics, engagement tracking, or publishing to real Instagram, X or LinkedIn accounts.
+
+## Changes since the first design
+
+- Attempt results gained unknown, used when a platform may have accepted a post but the answer was lost.
+- slots gained retry_at, used for retry backoff.
+- Adapters have an optional lookup(idempotencyKey) that settles unknown outcomes and crash recovery. An adapter that cannot verify returns undefined, and the slot is then marked failed instead of retried.
+- The scheduler is a polling worker inside the server process. On startup it checks every claimed slot.
+- Endpoints added: GET /variants/:id, POST /posts/:id/variants, POST /slots/:id/publish, GET /publish-history, GET /mock-posts.
